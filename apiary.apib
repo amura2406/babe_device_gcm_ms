@@ -1,80 +1,184 @@
 FORMAT: 1A
-HOST: http://polls.apiblueprint.org/
+HOST: http://localhost/v1/d-gcm
 
 # babe-device-gcm-ms
 
-Polls is a simple API allowing consumers to view polls and vote in them.
+### Background ###
 
-## Questions Collection [/questions]
+This service is emerged as a solution to manage mapping of `deviceId` to `gcmID` without knowing the relationship to a user.
 
-### List All Questions [GET]
+Moreover, the __general push notification__ process refer to this mapping without even need the user.
+ 
+There are also massive data discrepancies between this mapping to `gcmId` which is related directly to a user (+ 3mil diff).
+
+So this data will still be maintained for legacy device until GCM Ids collected in the __User Microservice__ is significant enough.
+
+The plan is to abstract the underlying database, so it'll be easier to switch to another implementation in the future If all client of __Device GCM__ Mapping already using this API.
+
+### How It Works ###
+
+This API will exposed basic CRUD service on the mapping of Device GCM.
+
+## GCM ID Related [/lim/{limit}]
+
+### Get Active GCM Indices [GET]
+
+Get an array of all active GCM indices from the beginning and `limit` the number of record by limit.  
+
++ Parameters
+    + limit: 1000 (number, required) - Limit of the number of GCM indices that will be returned
 
 + Response 200 (application/json)
+    + Attributes
+        + page (object)
+            + nextLastId: 1001 (number, optional) - The next last ID should be used to request **next** page, can be `null` if there's no more GCM Indices
+            + count: 1000 (number) - number of GCM indices that actually returned
+        + data: `bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1`, `k98RNwTe3H0:CK2k_MNwgIpoDKCIZvvDMExUdFQLG1` (array[string]) - Array of GCM Indices
 
-        [
-            {
-                "question": "Favourite programming language?",
-                "published_at": "2015-08-05T08:40:51.620Z",
-                "choices": [
-                    {
-                        "choice": "Swift",
-                        "votes": 2048
-                    }, {
-                        "choice": "Python",
-                        "votes": 1024
-                    }, {
-                        "choice": "Objective-C",
-                        "votes": 512
-                    }, {
-                        "choice": "Ruby",
-                        "votes": 256
-                    }
-                ]
-            }
-        ]
++ Response 400 (application/json)
+    Return when parameters requirement not met correctly
+    
+    + Attributes (DefaultError400)
+        
++ Response 503 (application/json)
+    Return when server has internal error and can't continue fulfilling the request
 
-### Create a New Question [POST]
+    + Attributes (DefaultError503)
 
-You may create your own question using this action. It takes a JSON
-object containing a question and a collection of answers in the
-form of choices.
+### Get Active GCM Indices with Pagination [GET /lim/{limit}/from/{lastId}]
+
+Get an array of all active GCM indices from the `lastId` and `limit` the number of record by limit. 
+
++ Parameters
+    + limit: 1000 (number, required) - Limit of the number of GCM indices that will be returned
+    + lastId: 1001 (number, required) - Last GCM ID identifier in the backend storage used as offset
+
++ Response 200 (application/json)
+    + Attributes (GCMPaginationModel)
+
++ Response 400 (application/json)
+    Return when parameters requirement not met correctly
+    
+    + Attributes (DefaultError400)
+        
++ Response 503 (application/json)
+    Return when server has internal error and can't continue fulfilling the request
+
+    + Attributes (DefaultError503)
+
+### Update GCM ID [PATCH /{deviceId}]
+
+Update GCM Id by `deviceId` supplied.
+
+Return HTTP 204 with no content upon success.
+
++ Parameters
+    + deviceId: `dwae31f79vb` (string, required) - Android Device ID
+    
++ Request (application/json)
+    + Attributes
+        + gcmId: `bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1` (string) - Android GCM ID.
+        
++ Response 204
+
++ Response 400 (application/json)
+    Return when parameters requirement not met correctly
+    
+    + Attributes (DefaultError400)
+        
++ Response 404 (application/json)
+    Return when deviceId not found.
+    
+    + Attributes (DefaultError404)
+
++ Response 503 (application/json)
+    Return when server has internal error and can't continue fulfilling the request
+
+    + Attributes (DefaultError503)
+    
+### Replace GCM ID [PUT /{gcmId}]
+
+Replace old GCM ID with the new one.
+
+Return HTTP 204 with no content upon success.
+
++ Parameters
+    + gcmId: bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1 (string, required) - Old Android Google Cloud Messaging ID
 
 + Request (application/json)
+    + Attributes
+        + newGcmId: ncrRNwTe3H0_0F82GHHwgIpoDKCIZvvDMExUdFPL1T (string, required) - New Android Google Cloud Messaging ID
+        
++ Response 204
 
-        {
-            "question": "Favourite programming language?",
-            "choices": [
-                "Swift",
-                "Python",
-                "Objective-C",
-                "Ruby"
-            ]
-        }
++ Response 400 (application/json)
+    Return when parameters requirement not met correctly
+    
+    + Attributes (DefaultError400)
+        
++ Response 404 (application/json)
+    Return when the old GCM ID is not found
+    
+    + Attributes (DefaultError404)
 
-+ Response 201 (application/json)
++ Response 503 (application/json)
+    Return when server has internal error and can't continue fulfilling the request
 
-    + Headers
+    + Attributes (DefaultError503)
+    
+### Delete GCM ID [DELETE /{gcmId}]
 
-            Location: /questions/2
+Delete GCM ID.
 
-    + Body
+Return HTTP 204 with no content upon success.
 
-            {
-                "question": "Favourite programming language?",
-                "published_at": "2015-08-05T08:40:51.620Z",
-                "choices": [
-                    {
-                        "choice": "Swift",
-                        "votes": 0
-                    }, {
-                        "choice": "Python",
-                        "votes": 0
-                    }, {
-                        "choice": "Objective-C",
-                        "votes": 0
-                    }, {
-                        "choice": "Ruby",
-                        "votes": 0
-                    }
-                ]
-            }
++ Parameters
+    + gcmId: bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1 (string, required) - Android Google Cloud Messaging ID
+        
++ Response 204
+
++ Response 400 (application/json)
+    Return when parameters requirement not met correctly
+    
+    + Attributes (DefaultError400)
+        
++ Response 404 (application/json)
+    Return when GCM ID is not found
+    
+    + Attributes (DefaultError404)
+
++ Response 503 (application/json)
+    Return when server has internal error and can't continue fulfilling the request
+
+    + Attributes (DefaultError503)
+    
+    
+    
+
+# Data Structures
+    
+## GCMPaginationModel (object)
++ page (object)
+    + nextLastId: 2001 (number, optional) - The next last ID should be used to request **next** page, can be `null` if there's no more GCM Indices
+    + count: 1000 (number) - number of GCM indices that actually returned
++ data: `bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1`, `k98RNwTe3H0:CK2k_MNwgIpoDKCIZvvDMExUdFQLG1` (array[string]) - Array of GCM Indices
+    
+## Error (object)
++ errCode (number) - Error Code
++ errMsg (string) - Error Message
+
+## DefaultError400 (Error)
++ errCode: `-1`
++ errMsg: Invalid Request
+
+## DefaultError401 (Error)
++ errCode: `-2`
++ errMsg: Authorization needed to access resource
+
+## DefaultError404 (Error)
++ errCode: `-5`
++ errMsg: Resource not found
+
+## DefaultError503 (Error)
++ errCode: `-10`
++ errMsg: Backend service is down
