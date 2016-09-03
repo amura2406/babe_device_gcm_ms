@@ -1,1 +1,1 @@
-# babe_device_gcm_ms
+# BABE Device GCM Microservice API Documentation Repo
